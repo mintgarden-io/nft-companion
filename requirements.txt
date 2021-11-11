@@ -1,0 +1,4 @@
+chia-blockchain==1.2.10
+setuptools~=57.4.0
+pytest~=6.2.5
+blspy~=1.0.6
