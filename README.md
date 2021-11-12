@@ -44,3 +44,7 @@ signature: 8c112c15b8dc8e6a5e99c3c0f053b0cf89f503bc704d60153b94ef97980402dd859f1
 
 
 ```
+
+## Attribution
+
+The puzzles in this repository build on puzzles included in the [chia-blockchain](https://github.com/Chia-Network/chia-blockchain) project, which is licensed under Apache 2.0.
