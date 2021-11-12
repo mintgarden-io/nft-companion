@@ -1,0 +1,44 @@
+(mod (OWNER_PUBKEY
+      OWNER_PUZZLE_HASH
+      INNER_PUZZLE_HASH
+      Truths
+      new_owner_pubkey
+      new_owner_puzhash
+      payment_amount ; insert 0 for transfer without payment
+      payment_id
+      )
+
+  (include condition_codes.clib)
+  (include singleton_truths.clib)
+  (include curry_and_treehash.clib)
+
+  (defun-inline inner_puzzle_hash_for_new_owner (INNER_PUZZLE_HASH new_owner_pubkey new_owner_puzhash)
+    (puzzle-hash-of-curried-function INNER_PUZZLE_HASH (sha256 1 INNER_PUZZLE_HASH) (sha256 1 new_owner_puzhash) (sha256 1 new_owner_pubkey))
+  )
+
+  (defun change_owner (OWNER_PUBKEY INNER_PUZZLE_HASH my_amount new_owner_pubkey new_owner_puzhash)
+    (list (list CREATE_COIN (inner_puzzle_hash_for_new_owner INNER_PUZZLE_HASH new_owner_pubkey new_owner_puzhash) my_amount) ; Transfer the singleton to the new owner
+          (list AGG_SIG_ME new_owner_pubkey new_owner_puzhash) ; Ensure that the puzhash matches the public key
+          (list AGG_SIG_ME OWNER_PUBKEY new_owner_pubkey) ; Owner asserts the new owner
+    )
+  )
+
+  (defun change_owner_and_transfer_payment (OWNER_PUBKEY OWNER_PUZZLE_HASH INNER_PUZZLE_HASH my_amount new_owner_pubkey new_owner_puzhash payment_amount payment_id)
+    (list (list CREATE_COIN (inner_puzzle_hash_for_new_owner INNER_PUZZLE_HASH new_owner_pubkey new_owner_puzhash) my_amount) ; Transfer the singleton to the new owner
+          (list CREATE_COIN OWNER_PUZZLE_HASH payment_amount) ; Pay the current owner
+          (list CREATE_PUZZLE_ANNOUNCEMENT payment_id) ; Inform the payment coin of this spend
+          (list ASSERT_COIN_ANNOUNCEMENT (sha256 payment_id new_owner_pubkey)) ; Assert that the payment coin is being spent and validate the owner
+          (list AGG_SIG_ME new_owner_pubkey new_owner_puzhash) ; Ensure that the puzhash matches the public key
+          (list AGG_SIG_ME OWNER_PUBKEY payment_amount) ; Owner asserts the price
+    )
+  )
+
+  ; main
+  (if new_owner_pubkey
+    (if (> payment_amount 0)
+      (change_owner_and_transfer_payment OWNER_PUBKEY OWNER_PUZZLE_HASH INNER_PUZZLE_HASH (my_amount_truth Truths) new_owner_pubkey new_owner_puzhash payment_amount payment_id)
+      (change_owner OWNER_PUBKEY INNER_PUZZLE_HASH (my_amount_truth Truths) new_owner_pubkey new_owner_puzhash)
+    )
+    (x)
+  )
+)
