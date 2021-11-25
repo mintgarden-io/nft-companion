@@ -18,7 +18,6 @@ from chia.wallet.puzzles import (
     singleton_top_layer,
 )
 from chia.wallet.puzzles.singleton_top_layer import SINGLETON_MOD_HASH, SINGLETON_LAUNCHER_HASH
-from chia.wallet.util.debug_spend_bundle import disassemble
 
 clibs_path: Path = Path(std_lib.__file__).parent
 OWNABLE_SINGLETON_MOD: Program = load_clvm(
@@ -39,27 +38,22 @@ def create_inner_puzzle(owner_pubkey: G1Element):
 
 
 def create_unsigned_ownable_singleton(
-        coin: Coin, puzzle: Program, owner_pubkey: G1Element, uri: str, name: str, fee: uint64 = 0) \
+        genesis_coin: Coin, genesis_coin_puzzle: Program, owner_pubkey: G1Element, uri: str, name: str) \
         -> Tuple[List[CoinSpend], Program]:
     inner_puzzle = create_inner_puzzle(owner_pubkey)
     comment = [("uri", uri), ("name", name), ("creator", owner_pubkey)]
 
-    conditions, launcher_coinsol = singleton_top_layer.launch_conditions_and_coinsol(coin, inner_puzzle, comment,
+    assert genesis_coin.amount == SINGLETON_AMOUNT
+
+    conditions, launcher_coinsol = singleton_top_layer.launch_conditions_and_coinsol(genesis_coin, inner_puzzle, comment,
                                                                                      SINGLETON_AMOUNT)
 
-    conditions.append(Program.to(
-        [
-            ConditionOpcode.CREATE_COIN,
-            coin.puzzle_hash,
-            coin.amount - SINGLETON_AMOUNT - fee,
-        ])
-    )
     delegated_puzzle: Program = p2_conditions.puzzle_for_conditions(conditions)  # noqa
     full_solution: Program = p2_delegated_puzzle_or_hidden_puzzle.solution_for_conditions(conditions)  # noqa
 
     starting_coinsol: CoinSpend = CoinSpend(
-        coin,
-        puzzle,
+        genesis_coin,
+        genesis_coin_puzzle,
         full_solution,
     )
 
