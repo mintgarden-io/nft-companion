@@ -64,10 +64,10 @@ def create_unsigned_ownable_singleton(
         genesis_coin, inner_puzzle, comment, SINGLETON_AMOUNT
     )
 
-    delegated_puzzle: Program = p2_conditions.puzzle_for_conditions(conditions)  # noqa
+    delegated_puzzle: Program = p2_conditions.puzzle_for_conditions(conditions)
     full_solution: Program = (
         p2_delegated_puzzle_or_hidden_puzzle.solution_for_conditions(conditions)
-    )  # noqa
+    )
 
     starting_coinsol: CoinSpend = CoinSpend(
         genesis_coin,
@@ -79,56 +79,17 @@ def create_unsigned_ownable_singleton(
 
 
 def create_buy_offer(
-    payment_coin: Coin,
-    puzzle: Program,
+    p2_singleton_coin: Coin,
+    p2_singleton_puzzle: Program,
     launcher_id: bytes32,
     lineage_proof: LineageProof,
     singleton_coin: Coin,
     current_owner_pubkey: G1Element,
     new_owner_pubkey: G1Element,
     payment_amount: uint64,
-    fee: uint64 = 0,
-) -> Tuple[List[CoinSpend], Program, bytes32]:
-    p2_singleton_puzzle: Program = pay_to_singleton_puzzle(
-        launcher_id, payment_coin.puzzle_hash
-    )
-
-    conditions = [
-        (
-            Program.to(
-                [
-                    ConditionOpcode.CREATE_COIN,
-                    p2_singleton_puzzle.get_tree_hash(),
-                    payment_amount,
-                ]
-            )
-        ),
-        (
-            Program.to(
-                [
-                    ConditionOpcode.CREATE_COIN,
-                    payment_coin.puzzle_hash,
-                    payment_coin.amount - payment_amount - fee,
-                ]
-            )
-        ),
-    ]
-    delegated_puzzle: Program = p2_conditions.puzzle_for_conditions(conditions)  # noqa
-    full_solution: Program = (
-        p2_delegated_puzzle_or_hidden_puzzle.solution_for_conditions(conditions)
-    )  # noqa
-
-    starting_coinsol: CoinSpend = CoinSpend(
-        payment_coin,
-        puzzle,
-        full_solution,
-    )
-
+) -> Tuple[List[CoinSpend], bytes32]:
     singleton_inner_puzzle = create_inner_puzzle(current_owner_pubkey)
 
-    p2_singleton_coin = Coin(
-        payment_coin.name(), p2_singleton_puzzle.get_tree_hash(), payment_amount
-    )
     p2_singleton_solution = Program.to(
         [
             singleton_inner_puzzle.get_tree_hash(),
@@ -163,7 +124,6 @@ def create_buy_offer(
     )
 
     return (
-        [p2_singleton_coinsol, starting_coinsol, singleton_coinsol],
-        delegated_puzzle,
+        [p2_singleton_coinsol, singleton_coinsol],
         new_owner_puzhash,
     )
