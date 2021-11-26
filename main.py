@@ -138,7 +138,7 @@ def create(name: str, uri: str, fingerprint: int, fee: int):
             click.secho("Your NFT has been submitted successfully!", fg="green")
             click.echo("Please wait a few minutes until the NFT has been added to the blockchain.")
             click.echo(
-                f"You can inspect your NFT using the following link: {SINGLETON_GALLERY_FRONTEND}/singletons/{launcher_coin_record.coin.name()}"
+                f"You can inspect your NFT using the following link: {SINGLETON_GALLERY_FRONTEND}/singletons/{launcher_coin_record.coin.name()}?pending=1"
             )
 
 
