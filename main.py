@@ -5,12 +5,14 @@ from typing import Optional
 import aiohttp
 import click
 import requests
-from blspy import PrivateKey, AugSchemeMPL
+from blspy import PrivateKey, AugSchemeMPL, G2Element
+from clvm.casts import int_to_bytes
 
+from chia.cmds.units import units
 from chia.cmds.wallet_funcs import get_wallet
-from chia.consensus.default_constants import DEFAULT_CONSTANTS
 from chia.rpc.wallet_rpc_client import WalletRpcClient
 from chia.types.blockchain_format.coin import Coin
+from chia.types.blockchain_format.program import Program
 from chia.types.spend_bundle import SpendBundle
 from chia.util.config import load_config
 from chia.util.default_root import DEFAULT_ROOT_PATH
@@ -22,9 +24,12 @@ from chia.wallet.transaction_record import TransactionRecord
 from ownable_singleton.drivers.ownable_singleton_driver import (
     SINGLETON_AMOUNT,
     create_unsigned_ownable_singleton,
+    pay_to_singleton_puzzle,
 )
 
-AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10 = bytes.fromhex('ae83525ba8d1dd3f09b277de18ca3e43fc0af20d20c4b3e92ef2a48bd291ccb2')
+AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10 = bytes.fromhex(
+    "ae83525ba8d1dd3f09b277de18ca3e43fc0af20d20c4b3e92ef2a48bd291ccb2"
+)
 
 SINGLETON_GALLERY_API = "https://xch.gallery/api"
 SINGLETON_GALLERY_FRONTEND = "https://xch.gallery"
@@ -66,6 +71,40 @@ async def create_genesis_coin(fingerprint, amt, fee) -> [TransactionRecord, Priv
             [{"puzzle_hash": singleton_wallet_puzhash, "amount": amt}], fee=fee
         )
         return signed_tx, singleton_sk
+    finally:
+        wallet_client.close()
+        await wallet_client.await_closed()
+
+
+async def create_p2_singleton_coin(
+    fingerprint: Optional[int], launcher_id: str, amt: int, fee: int
+) -> [TransactionRecord, Program, PrivateKey]:
+    try:
+        wallet_client: WalletRpcClient = await get_client()
+        wallet_client_f, fingerprint = await get_wallet(wallet_client, fingerprint)
+
+        private_key = await wallet_client.get_private_key(fingerprint)
+        master_sk = PrivateKey.from_bytes(bytes.fromhex(private_key["sk"]))
+        singleton_sk = master_sk_to_singleton_owner_sk(master_sk, uint32(0))
+
+        dummy_p2_singleton_puzzle = pay_to_singleton_puzzle(launcher_id, (b"0" * 32))
+
+        signed_tx = await wallet_client.create_signed_transaction(
+            [{"puzzle_hash": dummy_p2_singleton_puzzle.get_tree_hash(), "amount": amt}],
+            fee=fee,
+        )
+        spent_coin = signed_tx.removals[0]
+
+        p2_singleton_puzzle = pay_to_singleton_puzzle(
+            bytes.fromhex(launcher_id), spent_coin.puzzle_hash
+        )
+        signed_tx = await wallet_client.create_signed_transaction(
+            [{"puzzle_hash": p2_singleton_puzzle.get_tree_hash(), "amount": amt}],
+            fee=fee,
+            coins=signed_tx.removals,
+        )
+
+        return signed_tx, p2_singleton_puzzle, singleton_sk
     finally:
         wallet_client.close()
         await wallet_client.await_closed()
@@ -113,9 +152,9 @@ def create(name: str, uri: str, fingerprint: int, fee: int):
     signature = AugSchemeMPL.sign(
         synthetic_secret_key,
         (
-                delegated_puzzle.get_tree_hash()
-                + genesis_coin.name()
-                + AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10
+            delegated_puzzle.get_tree_hash()
+            + genesis_coin.name()
+            + AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10
         ),
     )
 
@@ -126,7 +165,9 @@ def create(name: str, uri: str, fingerprint: int, fee: int):
     if click.confirm("The transaction seems valid. Do you want to submit it?"):
         response = requests.post(
             f"{SINGLETON_GALLERY_API}/singletons/submit",
-            json=combined_spend_bundle.to_json_dict(include_legacy_keys=False, exclude_modern_keys=False),
+            json=combined_spend_bundle.to_json_dict(
+                include_legacy_keys=False, exclude_modern_keys=False
+            ),
         )
         if response.status_code != 200:
             click.secho("Failed to submit NFT:", err=True, fg="red")
@@ -138,9 +179,95 @@ def create(name: str, uri: str, fingerprint: int, fee: int):
                 if coin.coin.puzzle_hash == SINGLETON_LAUNCHER_HASH
             )
             click.secho("Your NFT has been submitted successfully!", fg="green")
-            click.echo("Please wait a few minutes until the NFT has been added to the blockchain.")
+            click.echo(
+                "Please wait a few minutes until the NFT has been added to the blockchain."
+            )
             click.echo(
                 f"You can inspect your NFT using the following link: {SINGLETON_GALLERY_FRONTEND}/singletons/{launcher_coin_record.coin.name()}?pending=1"
+            )
+
+
+@cli.command()
+@click.option("--launcher-id", prompt=True, help="The ID of the NFT")
+@click.option(
+    "--price",
+    type=float,
+    prompt=True,
+    help="The price (in XCH) you want to offer for this NFT singleton",
+)
+@click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
+@click.option(
+    "--fee",
+    required=True,
+    default=0,
+    show_default=True,
+    help="The XCH fee to use for this transaction",
+)
+def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
+    response = requests.get(f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}")
+    if response.status_code != 200:
+        click.secho(
+            f"Could not find an NFT with ID '{launcher_id}'", err=True, fg="red"
+        )
+        return
+    singleton = response.json()
+    name = singleton["name"]
+
+    price_in_mojo = int(price * units["chia"])
+
+    try:
+        signed_tx: TransactionRecord
+        p2_singleton_puzzle: Program
+        owner_sk: PrivateKey
+        (
+            signed_tx,
+            p2_singleton_puzzle,
+            owner_sk,
+        ) = asyncio.get_event_loop().run_until_complete(
+            create_p2_singleton_coin(fingerprint, launcher_id, price_in_mojo, fee)
+        )
+        p2_singleton_coin: Coin = next(
+            coin
+            for coin in signed_tx.additions
+            if coin.puzzle_hash == p2_singleton_puzzle.get_tree_hash()
+        )
+    except TypeError:
+        return
+
+    new_owner_pubkey = owner_sk.get_g1()
+    new_owner_puzhash = p2_delegated_puzzle_or_hidden_puzzle.puzzle_for_pk(
+        new_owner_pubkey
+    ).get_tree_hash()
+    singleton_signature = AugSchemeMPL.sign(
+        owner_sk,
+        bytes(new_owner_puzhash)
+        + bytes.fromhex(singleton["singleton_id"])
+        + AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10,
+    )
+    payment_spend_bundle = SpendBundle.aggregate([signed_tx.spend_bundle, SpendBundle([], singleton_signature)])
+
+    if click.confirm(
+        f"You are offering {price} XCH for '{name}'. Do you want to submit it?"
+    ):
+        response = requests.post(
+            f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}/offers/submit",
+            json={
+                "payment_spend_bundle": payment_spend_bundle.to_json_dict(
+                    include_legacy_keys=False, exclude_modern_keys=False
+                ),
+                "p2_singleton_coin": p2_singleton_coin.to_json_dict(),
+                "p2_singleton_puzzle": bytes(p2_singleton_puzzle).hex(),
+                "new_owner_pubkey": bytes(new_owner_pubkey).hex(),
+                "price": price_in_mojo,
+            },
+        )
+        if response.status_code != 200:
+            click.secho("Failed to submit offer:", err=True, fg="red")
+            click.secho(response.text, err=True, fg="red")
+        else:
+            click.secho("Your offer has been submitted successfully!", fg="green")
+            click.echo(
+                f"You can inspect it using the following link: {SINGLETON_GALLERY_FRONTEND}/singletons/{launcher_id}"
             )
 
 
