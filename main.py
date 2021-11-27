@@ -24,6 +24,8 @@ from ownable_singleton.drivers.ownable_singleton_driver import (
     create_unsigned_ownable_singleton,
 )
 
+AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10 = bytes.fromhex('ae83525ba8d1dd3f09b277de18ca3e43fc0af20d20c4b3e92ef2a48bd291ccb2')
+
 SINGLETON_GALLERY_API = "https://xch.gallery/api"
 SINGLETON_GALLERY_FRONTEND = "https://xch.gallery"
 
@@ -111,9 +113,9 @@ def create(name: str, uri: str, fingerprint: int, fee: int):
     signature = AugSchemeMPL.sign(
         synthetic_secret_key,
         (
-            delegated_puzzle.get_tree_hash()
-            + genesis_coin.name()
-            + DEFAULT_CONSTANTS.AGG_SIG_ME_ADDITIONAL_DATA
+                delegated_puzzle.get_tree_hash()
+                + genesis_coin.name()
+                + AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10
         ),
     )
 
@@ -124,7 +126,7 @@ def create(name: str, uri: str, fingerprint: int, fee: int):
     if click.confirm("The transaction seems valid. Do you want to submit it?"):
         response = requests.post(
             f"{SINGLETON_GALLERY_API}/singletons/submit",
-            json=combined_spend_bundle.to_json_dict(),
+            json=combined_spend_bundle.to_json_dict(include_legacy_keys=False, exclude_modern_keys=False),
         )
         if response.status_code != 200:
             click.secho("Failed to submit NFT:", err=True, fg="red")
