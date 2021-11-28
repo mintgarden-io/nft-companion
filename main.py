@@ -110,6 +110,28 @@ async def create_p2_singleton_coin(
         await wallet_client.await_closed()
 
 
+async def sign_offer(
+    fingerprint: Optional[int], price: int, singleton_id: str
+) -> [TransactionRecord, Program, PrivateKey]:
+    try:
+        wallet_client: WalletRpcClient = await get_client()
+        wallet_client_f, fingerprint = await get_wallet(wallet_client, fingerprint)
+
+        private_key = await wallet_client.get_private_key(fingerprint)
+        master_sk = PrivateKey.from_bytes(bytes.fromhex(private_key["sk"]))
+        singleton_sk = master_sk_to_singleton_owner_sk(master_sk, uint32(0))
+
+        return AugSchemeMPL.sign(
+            singleton_sk,
+            int_to_bytes(price)
+            + bytes.fromhex(singleton_id)
+            + AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10,
+        )
+    finally:
+        wallet_client.close()
+        await wallet_client.await_closed()
+
+
 @click.group()
 def cli():
     pass
@@ -269,6 +291,63 @@ def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
             click.echo(
                 f"You can inspect it using the following link: {SINGLETON_GALLERY_FRONTEND}/singletons/{launcher_id}"
             )
+
+
+@cli.command()
+@click.option("--launcher-id", prompt=True, help="The ID of the NFT")
+@click.option("--offer-id", prompt=True, help="The ID of the offer you want to accept")
+@click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
+@click.option(
+    "--fee",
+    required=True,
+    default=0,
+    show_default=True,
+    help="The XCH fee to use for this transaction",
+)
+def accept_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int], fee: int):
+    singleton_response = requests.get(
+        f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}"
+    )
+    if singleton_response.status_code != 200:
+        click.secho(
+            f"Could not find an NFT with ID '{launcher_id}'", err=True, fg="red"
+        )
+        return
+    name = singleton_response.json()["name"]
+
+    offer_response = requests.get(
+        f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}/offers/{offer_id}"
+    )
+    if offer_response.status_code != 200:
+        click.secho(
+            f"Could not find an offer with ID '{offer_id}' for NFT '{name}'",
+            err=True,
+            fg="red",
+        )
+        return
+    offer = offer_response.json()
+    price = offer["price"]
+    price_in_chia = price / units["chia"]
+
+    price_signature: G2Element = asyncio.get_event_loop().run_until_complete(
+        sign_offer(fingerprint, price, offer["singleton_id"])
+    )
+
+    if click.confirm(
+        f"You are accepting {price_in_chia} XCH for '{name}'. Do you want to submit it?"
+    ):
+        response = requests.post(
+            f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}/offers/{offer_id}/accept",
+            json={
+                "price_signature": bytes(price_signature).hex(),
+            },
+        )
+        if response.status_code != 200:
+            click.secho("Failed to accept offer:", err=True, fg="red")
+            click.secho(response.text, err=True, fg="red")
+        else:
+            click.secho("You accepted the offer!", fg="green")
+            click.echo(f"The payment is being sent to your singleton wallet address.")
 
 
 if __name__ == "__main__":
