@@ -234,6 +234,7 @@ def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
         return
     singleton = response.json()
     name = singleton["name"]
+    owner = singleton["owner"]
 
     price_in_mojo = int(price * units["chia"])
 
@@ -257,6 +258,10 @@ def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
         return
 
     new_owner_pubkey = owner_sk.get_g1()
+    if owner == bytes(new_owner_pubkey).hex():
+        click.secho("This is your singleton, you can't create an offer for it.", fg="yellow")
+        return
+
     new_owner_puzhash = p2_delegated_puzzle_or_hidden_puzzle.puzzle_for_pk(
         new_owner_pubkey
     ).get_tree_hash()
@@ -297,14 +302,7 @@ def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
 @click.option("--launcher-id", prompt=True, help="The ID of the NFT")
 @click.option("--offer-id", prompt=True, help="The ID of the offer you want to accept")
 @click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
-@click.option(
-    "--fee",
-    required=True,
-    default=0,
-    show_default=True,
-    help="The XCH fee to use for this transaction",
-)
-def accept_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int], fee: int):
+def accept_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int]):
     singleton_response = requests.get(
         f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}"
     )
@@ -320,9 +318,9 @@ def accept_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int], fe
     )
     if offer_response.status_code != 200:
         click.secho(
-            f"Could not find an offer with ID '{offer_id}' for NFT '{name}'",
+            f"Could not find an offer with ID '{offer_id}' for NFT '{name}'.",
             err=True,
-            fg="red",
+            fg="yellow",
         )
         return
     offer = offer_response.json()
