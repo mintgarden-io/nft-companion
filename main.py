@@ -54,6 +54,21 @@ async def get_client() -> Optional[WalletRpcClient]:
         return None
 
 
+async def get_singleton_wallet(fingerprint) -> PrivateKey:
+    try:
+        wallet_client: WalletRpcClient = await get_client()
+        wallet_client_f, fingerprint = await get_wallet(wallet_client, fingerprint)
+
+        private_key = await wallet_client.get_private_key(fingerprint)
+        master_sk = PrivateKey.from_bytes(bytes.fromhex(private_key["sk"]))
+        singleton_sk = master_sk_to_singleton_owner_sk(master_sk, uint32(0))
+
+        return singleton_sk
+    finally:
+        wallet_client.close()
+        await wallet_client.await_closed()
+
+
 async def create_genesis_coin(fingerprint, amt, fee) -> [TransactionRecord, PrivateKey]:
     try:
         wallet_client: WalletRpcClient = await get_client()
@@ -135,6 +150,19 @@ async def sign_offer(
 @click.group()
 def cli():
     pass
+
+
+@cli.command()
+@click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
+def profile(fingerprint: int):
+    singleton_sk: PrivateKey
+    singleton_sk = asyncio.get_event_loop().run_until_complete(
+        get_singleton_wallet(fingerprint)
+    )
+
+    click.echo(
+        f"Your singleton profile is {SINGLETON_GALLERY_FRONTEND}/profile/{bytes(singleton_sk.get_g1()).hex()}."
+    )
 
 
 @cli.command()
@@ -259,7 +287,9 @@ def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
 
     new_owner_pubkey = owner_sk.get_g1()
     if owner == bytes(new_owner_pubkey).hex():
-        click.secho("This is your singleton, you can't create an offer for it.", fg="yellow")
+        click.secho(
+            "This is your singleton, you can't create an offer for it.", fg="yellow"
+        )
         return
 
     new_owner_puzhash = p2_delegated_puzzle_or_hidden_puzzle.puzzle_for_pk(
@@ -271,7 +301,9 @@ def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
         + bytes.fromhex(singleton["singleton_id"])
         + AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10,
     )
-    payment_spend_bundle = SpendBundle.aggregate([signed_tx.spend_bundle, SpendBundle([], singleton_signature)])
+    payment_spend_bundle = SpendBundle.aggregate(
+        [signed_tx.spend_bundle, SpendBundle([], singleton_signature)]
+    )
 
     if click.confirm(
         f"You are offering {price} XCH for '{name}'. Do you want to submit it?"
