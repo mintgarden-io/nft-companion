@@ -1,4 +1,14 @@
-# singleton-utils
+<p align="center">
+  <a href="https://xch.gallery">
+    <img src="https://xch.gallery/pflanz_128.png" alt="xch.gallery logo" width="128" height="128">
+  </a>
+</p>
+
+<h3 align="center">NFT Companion</h3>
+
+<div align="center">
+  Create and trade NFTs on <a href="https://xch.gallery">xch.gallery</a> and the Chia blockchain.
+</div>
 
 ## Installation
 
