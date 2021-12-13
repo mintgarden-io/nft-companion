@@ -14,8 +14,8 @@
 
 1. Clone the repository
 ```shell
-git clone https://github.com/xch-gallery/singleton-utils.git
-cd singleton-utils
+git clone https://github.com/xch-gallery//nft-companion.git
+cd nft-companion
 ```
 
 2. Run the install script and activate the virtual environment in Linux
