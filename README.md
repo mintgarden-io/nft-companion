@@ -37,6 +37,9 @@ pip3 install wheel
 pip3 install .
 pip3 install chia-dev-tools --no-deps
 
+Create NFT in Win10
+python nft.py create --name "Chives Bug Pet NFT Test" --uri "https://explorer.chivescoin.org/ChivesPets/Bug/B_4_1_6_9_3_8_3_1.png" --fingerprint 3220881649
+
 ```
 
 ## Create a new NFT singleton
