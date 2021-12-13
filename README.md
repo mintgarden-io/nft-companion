@@ -14,8 +14,8 @@
 
 1. Clone the repository
 ```shell
-git clone https://github.com/xch-gallery/singleton-utils.git
-cd singleton-utils
+git clone https://github.com/xch-gallery/nft-companion.git
+cd nft-companion
 ```
 
 2. Run the install script and activate the virtual environment in Linux
@@ -29,13 +29,9 @@ sh install.sh
 ```
 git clone https://github.com/xch-gallery/nft-companion
 cd nft-companion
-python -m venv venv
-./venv/Scripts/activate
-python -m pip install --upgrade pip
+.\install.ps1
 
-pip3 install wheel 
-pip3 install .
-pip3 install chia-dev-tools --no-deps
+./venv/Scripts/activate
 
 Create NFT in Win10
 python nft.py create --name "Chives Bug Pet NFT Test" --uri "https://explorer.chivescoin.org/ChivesPets/Bug/B_4_1_6_9_3_8_3_1.png" --fingerprint 3220881649

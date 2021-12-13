@@ -1,5 +1,3 @@
-git clone https://github.com/xch-gallery/nft-companion
-cd nft-companion
 python -m venv venv
 ./venv/Scripts/activate
 python -m pip install --upgrade pip
