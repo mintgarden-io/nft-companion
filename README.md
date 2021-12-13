@@ -49,6 +49,11 @@ The transaction seems valid. Do you want to submit it? [y/N]: y
 The NFT has been submitted successfully!
 Please wait a few minutes for the NFT to be finalized.
 You can inspect your NFT using the following link: https://xch.gallery/singletons/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
+Accept a offer:
+$python3 nft.py accept-offer --offer-id 8 --launcher-id "4e4d4bf47b26e233de96da85d132617e5aac4d8087cf61e0f17a2a7d92a1d51e" --fingerprint "3405833834"
+
 ```
 
 ## Attribution
