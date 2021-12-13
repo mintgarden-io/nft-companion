@@ -18,10 +18,25 @@ git clone https://github.com/xch-gallery/singleton-utils.git
 cd singleton-utils
 ```
 
-2. Run the install script and activate the virtual environment
+2. Run the install script and activate the virtual environment in Linux
 ```shell
 sh install.sh
 . ./venv/bin/activate
+```
+
+
+3. Run the install script and activate the virtual environment in Win10
+```
+git clone https://github.com/xch-gallery/nft-companion
+cd nft-companion
+python -m venv venv
+./venv/Scripts/activate
+python -m pip install --upgrade pip
+
+pip3 install wheel 
+pip3 install .
+pip3 install chia-dev-tools --no-deps
+
 ```
 
 ## Create a new NFT singleton
