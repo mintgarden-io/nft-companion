@@ -161,7 +161,7 @@ def profile(fingerprint: int):
     )
 
     click.echo(
-        f"Your singleton profile is {SINGLETON_GALLERY_FRONTEND}/profile/{bytes(singleton_sk.get_g1()).hex()}."
+        f"Your singleton profile is {SINGLETON_GALLERY_FRONTEND}/profile/{bytes(singleton_sk.get_g1()).hex()}"
     )
 
 
