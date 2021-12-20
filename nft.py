@@ -166,6 +166,36 @@ def profile(fingerprint: int):
 
 
 @cli.command()
+@click.option("--name", prompt=True, help="Your profile name")
+@click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
+def update_profile(name: str, fingerprint: int):
+    singleton_sk: PrivateKey
+    singleton_sk, _ = asyncio.get_event_loop().run_until_complete(
+        get_singleton_wallet(fingerprint)
+    )
+
+    public_key = singleton_sk.get_g1()
+    signature = AugSchemeMPL.sign(
+        singleton_sk,
+        bytes(public_key) + bytes(name, "utf-8"),
+    )
+
+    if click.confirm(f"Do you want to set your profile name to {name}?"):
+        response = requests.patch(
+            f"{SINGLETON_GALLERY_API}/profile/{public_key}",
+            json={"signature": bytes(signature).hex(), "name": name},
+        )
+        if response.status_code != 200:
+            click.secho("Failed to update profile:", err=True, fg="red")
+            click.secho(response.text, err=True, fg="red")
+        else:
+            click.secho("Your profile has been updated!", fg="green")
+            click.echo(
+                f"You can inspect it using the following link: {SINGLETON_GALLERY_FRONTEND}/profile/{public_key}"
+            )
+
+
+@cli.command()
 @click.option("--name", prompt=True, help="The name of the NFT")
 @click.option("--uri", prompt=True, help="The uri of the main NFT image")
 @click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
