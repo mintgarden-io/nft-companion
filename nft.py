@@ -412,7 +412,7 @@ def accept_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int]):
 
 @cli.command()
 @click.option("--launcher-id", prompt=True, help="The ID of the NFT")
-@click.option("--offer-id", prompt=True, help="The ID of the offer you want to accept")
+@click.option("--offer-id", prompt=True, help="The ID of the offer you want to cancel")
 @click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
 def cancel_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int]):
     singleton_response = requests.get(

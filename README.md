@@ -102,6 +102,30 @@ You accepted the offer!
 The payment is being sent to your singleton wallet address.
 ```
 
+## Cancel a buy offer for a NFT singleton
+
+The `cancel-offer` command can be used to cancel one of your buy offers.
+It requires a running wallet on your computer.
+
+```shell
+$ python3 nft.py cancel-offer --help
+Usage: nft.py cancel-offer [OPTIONS]
+
+Options:
+  --launcher-id TEXT     The ID of the NFT
+  --offer-id TEXT        The ID of the offer you want to cancel
+  --fingerprint INTEGER  The fingerprint of the key to use [optional]
+  --help                 Show this message and exit.
+```
+
+Here is an example of canceling a buy offer.
+
+```shell
+$ python3 nft.py cancel-offer --offer-id 16 --launcher-id "356eb19da1fac4490c8f83e39788d5989cc0db5a2eaf8285a58cd7f4ebe07501"
+Do you want to cancel your offer of 0.11 XCH for 'The fox'? [y/N]: y
+You cancelled the offer.
+```
+
 ## Showing your profile
 
 The `profile` command can be used to show the singleton profile for a given wallet.
