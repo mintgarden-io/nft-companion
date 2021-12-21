@@ -152,6 +152,31 @@ Your singleton profile is https://xch.gallery/profile/991053e52414463d68cb9f8901
 ```
 
 
+## Updating your profile
+
+The `update-profile` command can be used to show the singleton profile for a given wallet.
+It requires a running wallet on your computer.
+
+```shell
+python3 nft.py update-profile --help
+Usage: nft.py update-profile [OPTIONS]
+
+Options:
+  --name TEXT            Your profile name
+  --fingerprint INTEGER  The fingerprint of the key to use
+  --help                 Show this message and exit.
+```
+
+Here is an example.
+
+```shell
+$ python3 nft.py update-profile
+Name: Acevail
+Do you want to set your profile name to Acevail? [y/N]: y
+Your profile has been updated!
+You can inspect it using the following link: https://xch.gallery/profile/b3035d8ca2d572dec7843cc134277eec13e56c84afb2bd41ba78cb5a1b080033177433cfa8973bb5bd583ff55e96f4b4
+```
+
 ## Attribution
 
 The puzzles in this repository build on puzzles included in the [chia-blockchain](https://github.com/Chia-Network/chia-blockchain) project, which is licensed under Apache 2.0.
