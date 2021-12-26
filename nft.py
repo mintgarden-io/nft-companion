@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import asyncio
-from typing import Optional
+from typing import Optional, Tuple
 
 import aiohttp
 import click
@@ -54,7 +54,7 @@ async def get_client() -> Optional[WalletRpcClient]:
         return None
 
 
-async def get_singleton_wallet(fingerprint) -> PrivateKey:
+async def get_singleton_wallet(fingerprint: int) -> Tuple[PrivateKey, int]:
     try:
         wallet_client: WalletRpcClient = await get_client()
         wallet_client_f, fingerprint = await get_wallet(wallet_client, fingerprint)
@@ -63,7 +63,7 @@ async def get_singleton_wallet(fingerprint) -> PrivateKey:
         master_sk = PrivateKey.from_bytes(bytes.fromhex(private_key["sk"]))
         singleton_sk = master_sk_to_singleton_owner_sk(master_sk, uint32(0))
 
-        return singleton_sk
+        return singleton_sk, fingerprint
     finally:
         wallet_client.close()
         await wallet_client.await_closed()
@@ -156,13 +156,43 @@ def cli():
 @click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
 def profile(fingerprint: int):
     singleton_sk: PrivateKey
-    singleton_sk = asyncio.get_event_loop().run_until_complete(
+    singleton_sk, _ = asyncio.get_event_loop().run_until_complete(
         get_singleton_wallet(fingerprint)
     )
 
     click.echo(
-        f"Your singleton profile is {SINGLETON_GALLERY_FRONTEND}/profile/{bytes(singleton_sk.get_g1()).hex()}."
+        f"Your singleton profile is {SINGLETON_GALLERY_FRONTEND}/profile/{bytes(singleton_sk.get_g1()).hex()}"
     )
+
+
+@cli.command()
+@click.option("--name", prompt=True, help="Your profile name")
+@click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
+def update_profile(name: str, fingerprint: int):
+    singleton_sk: PrivateKey
+    singleton_sk, _ = asyncio.get_event_loop().run_until_complete(
+        get_singleton_wallet(fingerprint)
+    )
+
+    public_key = singleton_sk.get_g1()
+    signature = AugSchemeMPL.sign(
+        singleton_sk,
+        bytes(public_key) + bytes(name, "utf-8"),
+    )
+
+    if click.confirm(f"Do you want to set your profile name to {name}?"):
+        response = requests.patch(
+            f"{SINGLETON_GALLERY_API}/profile/{public_key}",
+            json={"signature": bytes(signature).hex(), "name": name},
+        )
+        if response.status_code != 200:
+            click.secho("Failed to update profile:", err=True, fg="red")
+            click.secho(response.text, err=True, fg="red")
+        else:
+            click.secho("Your profile has been updated!", fg="green")
+            click.echo(
+                f"You can inspect it using the following link: {SINGLETON_GALLERY_FRONTEND}/profile/{public_key}"
+            )
 
 
 @cli.command()
@@ -378,6 +408,63 @@ def accept_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int]):
         else:
             click.secho("You accepted the offer!", fg="green")
             click.echo(f"The payment is being sent to your singleton wallet address.")
+
+
+@cli.command()
+@click.option("--launcher-id", prompt=True, help="The ID of the NFT")
+@click.option("--offer-id", prompt=True, help="The ID of the offer you want to cancel")
+@click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
+def cancel_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int]):
+    singleton_response = requests.get(
+        f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}"
+    )
+    if singleton_response.status_code != 200:
+        click.secho(
+            f"Could not find an NFT with ID '{launcher_id}'", err=True, fg="red"
+        )
+        return
+    name = singleton_response.json()["name"]
+
+    offer_response = requests.get(
+        f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}/offers/{offer_id}"
+    )
+    if offer_response.status_code != 200:
+        click.secho(
+            f"Could not find an offer with ID '{offer_id}' for NFT '{name}'.",
+            err=True,
+            fg="yellow",
+        )
+        return
+    offer = offer_response.json()
+    price = offer["price"]
+    price_in_chia = price / units["chia"]
+
+    singleton_sk: PrivateKey
+    (singleton_sk, fingerprint) = asyncio.get_event_loop().run_until_complete(
+        get_singleton_wallet(fingerprint)
+    )
+    if offer["new_owner_public_key"] != bytes(singleton_sk.get_g1()).hex():
+        click.secho(f"This is not your offer.", err=True, fg="red")
+        return
+
+    price_signature: G2Element = asyncio.get_event_loop().run_until_complete(
+        sign_offer(fingerprint, price, offer["singleton_id"])
+    )
+
+    if click.confirm(
+        f"Do you want to cancel your offer of {price_in_chia} XCH for '{name}'?"
+    ):
+        response = requests.delete(
+            f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}/offers/{offer_id}",
+            json={
+                "price_signature": bytes(price_signature).hex(),
+            },
+        )
+        if response.status_code != 200:
+            click.secho("Failed to cancel offer:", err=True, fg="red")
+            click.secho(response.text, err=True, fg="red")
+        else:
+            click.secho("You cancelled the offer.", fg="green")
 
 
 if __name__ == "__main__":
