@@ -1,0 +1,81 @@
+(mod (OWNER
+      ROYALTY
+      INNER_PUZZLE_HASH
+      Truths
+      new_owner
+      payment
+      )
+
+  (defun-inline pubkey_of (owner) (f owner))
+  (defun-inline puzhash_of (owner) (f (r owner)))
+
+  (defun-inline creator_puzhash_of (royalty) (f royalty))
+  (defun-inline percentage_of (royalty) (f (r royalty)))
+
+  (defun-inline amount_of (payment) (f payment))
+  (defun-inline id_of (payment) (f (r payment)))
+
+  (include condition_codes.clib)
+  (include sha256tree.clib)
+  (include singleton_truths.clib)
+  (include curry_and_treehash.clib)
+
+  (defun merge_list (list_a list_b)
+    (if list_a
+      (c (f list_a) (merge_list (r list_a) list_b))
+      list_b
+    )
+  )
+
+  (defun make_even (amt)
+    (if (r (divmod amt 2))
+      (- amt 1)
+      amt
+    )
+  )
+
+  (defun-inline creator_amt (ROYALTY amount)
+    (if (percentage_of ROYALTY)
+      (f (divmod (* amount (percentage_of ROYALTY)) 100))
+	    0
+	  )
+  )
+
+  (defun-inline inner_puzzle_hash_for_new_owner (INNER_PUZZLE_HASH ROYALTY new_owner)
+    (puzzle-hash-of-curried-function INNER_PUZZLE_HASH (sha256 1 INNER_PUZZLE_HASH) (sha256tree ROYALTY) (sha256tree new_owner))
+  )
+
+  (defun change_owner (OWNER ROYALTY INNER_PUZZLE_HASH my_amount new_owner)
+    (list (list CREATE_COIN (inner_puzzle_hash_for_new_owner INNER_PUZZLE_HASH ROYALTY new_owner) my_amount) ; Transfer the singleton to the new owner
+          (list AGG_SIG_ME (pubkey_of new_owner) (puzhash_of new_owner)) ; Ensure that the puzhash matches the public key
+          (list AGG_SIG_ME (pubkey_of OWNER) (pubkey_of new_owner)) ; Owner asserts the new owner
+    )
+  )
+
+; TODO Allow no royalty
+  (defun change_owner_and_transfer_payment (OWNER ROYALTY INNER_PUZZLE_HASH my_amount new_owner payment)
+    (merge_list
+      (if ROYALTY
+        (list (list CREATE_COIN	(puzhash_of OWNER) (make_even (- (amount_of payment) (creator_amt ROYALTY (amount_of payment))))) ; Pay the current owner
+	            (list CREATE_COIN (creator_puzhash_of ROYALTY) (make_even (creator_amt ROYALTY (amount_of payment)))) ; Pay the creator
+        )
+        (list (list CREATE_COIN	(puzhash_of OWNER) (amount_of payment))) ; Pay the current owner
+      )
+      (list (list CREATE_COIN (inner_puzzle_hash_for_new_owner INNER_PUZZLE_HASH ROYALTY new_owner) my_amount) ; Transfer the singleton to the new owner
+            (list CREATE_PUZZLE_ANNOUNCEMENT (id_of payment)) ; Inform the payment coin of this spend
+            (list ASSERT_COIN_ANNOUNCEMENT (sha256 (id_of payment) (pubkey_of new_owner))) ; Assert that the payment coin is being spent and validate the owner
+            (list AGG_SIG_ME (pubkey_of new_owner) (puzhash_of new_owner)) ; Ensure that the puzhash matches the public key
+            (list AGG_SIG_ME (pubkey_of OWNER) (amount_of payment)) ; Owner asserts the price
+      )
+    )
+  )
+
+  ; main
+  (if new_owner
+    (if payment
+      (change_owner_and_transfer_payment OWNER ROYALTY INNER_PUZZLE_HASH (my_amount_truth Truths) new_owner payment)
+      (change_owner OWNER ROYALTY INNER_PUZZLE_HASH (my_amount_truth Truths) new_owner)
+    )
+    (x)
+  )
+)

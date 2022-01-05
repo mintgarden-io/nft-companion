@@ -6,6 +6,7 @@ import aiohttp
 import click
 import requests
 from blspy import PrivateKey, AugSchemeMPL, G2Element
+from click import FLOAT, INT
 from clvm.casts import int_to_bytes
 
 from chia.cmds.units import units
@@ -25,6 +26,8 @@ from ownable_singleton.drivers.ownable_singleton_driver import (
     SINGLETON_AMOUNT,
     create_unsigned_ownable_singleton,
     pay_to_singleton_puzzle,
+    Owner,
+    Royalty,
 )
 
 AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10 = bytes.fromhex(
@@ -198,15 +201,32 @@ def update_profile(name: str, fingerprint: int):
 @cli.command()
 @click.option("--name", prompt=True, help="The name of the NFT")
 @click.option("--uri", prompt=True, help="The uri of the main NFT image")
+@click.option(
+    "-r",
+    "--royalty",
+    "royalty_percentage",
+    type=INT,
+    prompt=True,
+    help="The percentage of each sale you want to receive as royalty.",
+    default=0,
+    show_default=True,
+)
 @click.option("--fingerprint", type=int, help="The fingerprint of the key to use")
 @click.option(
     "--fee",
+    type=FLOAT,
     required=True,
     default=0,
     show_default=True,
     help="The XCH fee to use for this transaction",
 )
-def create(name: str, uri: str, fingerprint: int, fee: int):
+def create(name: str, uri: str, fingerprint: int, royalty_percentage: int, fee: int):
+    if royalty_percentage > 99 or royalty_percentage < 0:
+        click.secho(
+            f"Royalty percentage has to be between 1 and 99.", err=True, fg="red"
+        )
+        return
+
     signed_tx: TransactionRecord
     owner_sk: PrivateKey
     signed_tx, owner_sk = asyncio.get_event_loop().run_until_complete(
@@ -218,9 +238,15 @@ def create(name: str, uri: str, fingerprint: int, fee: int):
     genesis_puzzle = p2_delegated_puzzle_or_hidden_puzzle.puzzle_for_pk(
         owner_sk.get_g1()
     )
+    creator = Owner(owner_sk.get_g1(), genesis_puzzle.get_tree_hash())
+    royalty = (
+        Royalty(creator.puzzle_hash, royalty_percentage)
+        if royalty_percentage > 0
+        else None
+    )
 
     coin_spends, delegated_puzzle = create_unsigned_ownable_singleton(
-        genesis_coin, genesis_puzzle, owner_sk.get_g1(), uri, name
+        genesis_coin, genesis_puzzle, creator, uri, name, version=2, royalty=royalty
     )
 
     synthetic_secret_key: PrivateKey = (
@@ -374,6 +400,7 @@ def accept_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int]):
         )
         return
     name = singleton_response.json()["name"]
+    royalty_percentage = singleton_response.json()["royalty_percentage"]
 
     offer_response = requests.get(
         f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}/offers/{offer_id}"
@@ -393,8 +420,13 @@ def accept_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int]):
         sign_offer(fingerprint, price, offer["singleton_id"])
     )
 
+    royalty_text = (
+        f" A share of {royalty_percentage}% of that price is sent to its creator."
+        if royalty_percentage > 0
+        else ""
+    )
     if click.confirm(
-        f"You are accepting {price_in_chia} XCH for '{name}'. Do you want to submit it?"
+        f"You are accepting {price_in_chia} XCH for '{name}'.{royalty_text} Do you want to submit it?"
     ):
         response = requests.post(
             f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}/offers/{offer_id}/accept",
