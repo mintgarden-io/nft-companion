@@ -14,11 +14,15 @@ from chia.cmds.wallet_funcs import get_wallet
 from chia.rpc.wallet_rpc_client import WalletRpcClient
 from chia.types.blockchain_format.coin import Coin
 from chia.types.blockchain_format.program import Program
+from chia.types.blockchain_format.sized_bytes import bytes32
 from chia.types.spend_bundle import SpendBundle
 from chia.util.config import load_config
 from chia.util.default_root import DEFAULT_ROOT_PATH
 from chia.util.ints import uint16, uint32
-from chia.wallet.derive_keys import master_sk_to_singleton_owner_sk
+from chia.wallet.derive_keys import (
+    master_sk_to_singleton_owner_sk,
+    master_sk_to_wallet_sk,
+)
 from chia.wallet.puzzles import p2_delegated_puzzle_or_hidden_puzzle
 from chia.wallet.puzzles.singleton_top_layer import SINGLETON_LAUNCHER_HASH
 from chia.wallet.transaction_record import TransactionRecord
@@ -57,6 +61,14 @@ async def get_client() -> Optional[WalletRpcClient]:
         return None
 
 
+def master_sk_to_wallet_puzhash(master_sk: PrivateKey) -> bytes32:
+    wallet_sk = master_sk_to_wallet_sk(master_sk, uint32(0))
+    wallet_puzzle = p2_delegated_puzzle_or_hidden_puzzle.puzzle_for_pk(
+        wallet_sk.get_g1()
+    )
+    return wallet_puzzle.get_tree_hash()
+
+
 async def get_singleton_wallet(fingerprint: int) -> Tuple[PrivateKey, int]:
     try:
         wallet_client: WalletRpcClient = await get_client()
@@ -72,7 +84,9 @@ async def get_singleton_wallet(fingerprint: int) -> Tuple[PrivateKey, int]:
         await wallet_client.await_closed()
 
 
-async def create_genesis_coin(fingerprint, amt, fee) -> [TransactionRecord, PrivateKey]:
+async def create_genesis_coin(
+    fingerprint, amt, fee
+) -> [TransactionRecord, PrivateKey, bytes32]:
     try:
         wallet_client: WalletRpcClient = await get_client()
         wallet_client_f, fingerprint = await get_wallet(wallet_client, fingerprint)
@@ -88,7 +102,7 @@ async def create_genesis_coin(fingerprint, amt, fee) -> [TransactionRecord, Priv
         signed_tx = await wallet_client.create_signed_transaction(
             [{"puzzle_hash": singleton_wallet_puzhash, "amount": amt}], fee=fee
         )
-        return signed_tx, singleton_sk
+        return signed_tx, singleton_sk, master_sk_to_wallet_puzhash(master_sk)
     finally:
         wallet_client.close()
         await wallet_client.await_closed()
@@ -96,7 +110,7 @@ async def create_genesis_coin(fingerprint, amt, fee) -> [TransactionRecord, Priv
 
 async def create_p2_singleton_coin(
     fingerprint: Optional[int], launcher_id: str, amt: int, fee: int
-) -> [TransactionRecord, Program, PrivateKey]:
+) -> [TransactionRecord, Program, PrivateKey, bytes32]:
     try:
         wallet_client: WalletRpcClient = await get_client()
         wallet_client_f, fingerprint = await get_wallet(wallet_client, fingerprint)
@@ -122,7 +136,12 @@ async def create_p2_singleton_coin(
             coins=signed_tx.removals,
         )
 
-        return signed_tx, p2_singleton_puzzle, singleton_sk
+        return (
+            signed_tx,
+            p2_singleton_puzzle,
+            singleton_sk,
+            master_sk_to_wallet_puzhash(master_sk),
+        )
     finally:
         wallet_client.close()
         await wallet_client.await_closed()
@@ -229,7 +248,12 @@ def create(name: str, uri: str, fingerprint: int, royalty_percentage: int, fee: 
 
     signed_tx: TransactionRecord
     owner_sk: PrivateKey
-    signed_tx, owner_sk = asyncio.get_event_loop().run_until_complete(
+    wallet_puzzle_hash: bytes32
+    (
+        signed_tx,
+        owner_sk,
+        wallet_puzzle_hash,
+    ) = asyncio.get_event_loop().run_until_complete(
         create_genesis_coin(fingerprint, SINGLETON_AMOUNT, fee)
     )
     genesis_coin: Coin = next(
@@ -238,7 +262,7 @@ def create(name: str, uri: str, fingerprint: int, royalty_percentage: int, fee: 
     genesis_puzzle = p2_delegated_puzzle_or_hidden_puzzle.puzzle_for_pk(
         owner_sk.get_g1()
     )
-    creator = Owner(owner_sk.get_g1(), genesis_puzzle.get_tree_hash())
+    creator = Owner(owner_sk.get_g1(), wallet_puzzle_hash)
     royalty = (
         Royalty(creator.puzzle_hash, royalty_percentage)
         if royalty_percentage > 0
@@ -326,10 +350,12 @@ def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
         signed_tx: TransactionRecord
         p2_singleton_puzzle: Program
         owner_sk: PrivateKey
+        wallet_puzzle_hash: bytes32
         (
             signed_tx,
             p2_singleton_puzzle,
             owner_sk,
+            wallet_puzzle_hash,
         ) = asyncio.get_event_loop().run_until_complete(
             create_p2_singleton_coin(fingerprint, launcher_id, price_in_mojo, fee)
         )
@@ -348,12 +374,9 @@ def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
         )
         return
 
-    new_owner_puzhash = p2_delegated_puzzle_or_hidden_puzzle.puzzle_for_pk(
-        new_owner_pubkey
-    ).get_tree_hash()
     singleton_signature = AugSchemeMPL.sign(
         owner_sk,
-        bytes(new_owner_puzhash)
+        wallet_puzzle_hash
         + bytes.fromhex(singleton["singleton_id"])
         + AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10,
     )
@@ -373,6 +396,7 @@ def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
                 "p2_singleton_coin": p2_singleton_coin.to_json_dict(),
                 "p2_singleton_puzzle": bytes(p2_singleton_puzzle).hex(),
                 "new_owner_pubkey": bytes(new_owner_pubkey).hex(),
+                "new_owner_puzhash": wallet_puzzle_hash.hex(),
                 "price": price_in_mojo,
             },
         )
@@ -439,7 +463,7 @@ def accept_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int]):
             click.secho(response.text, err=True, fg="red")
         else:
             click.secho("You accepted the offer!", fg="green")
-            click.echo(f"The payment is being sent to your singleton wallet address.")
+            click.echo(f"The payment is being sent to your wallet address.")
 
 
 @cli.command()
