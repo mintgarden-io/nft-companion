@@ -50,6 +50,7 @@ Usage: nft.py create [OPTIONS]
 Options:
   --name TEXT            The name of the NFT
   --uri TEXT             The uri of the main NFT image
+  --royalty INTEGER      The royalty percentage [default: 0]
   --fingerprint INTEGER  The fingerprint of the key to use [optional]
   --fee INTEGER          The XCH fee to use for this transaction  [default: 0]
   --help                 Show this message and exit.
