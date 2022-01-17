@@ -18,23 +18,23 @@ git clone https://github.com/xch-gallery/nft-companion.git
 cd nft-companion
 ```
 
-2. Run the install script and activate the virtual environment in Linux
+2.LINUX install: Run the install script and activate the virtual environment in Linux
 ```shell
 sh install.sh
 . ./venv/bin/activate
 ```
 
 
-3. Run the install script and activate the virtual environment in Win10
+2.WIN10 install: Run the install script and activate the virtual environment in Win10
 ```
 git clone https://github.com/xch-gallery/nft-companion
 cd nft-companion
-.\install.ps1
+./install.ps1
 
 ./venv/Scripts/activate
 
 Create NFT in Win10
-python nft.py create --name "Chives Bug Pet NFT Test" --uri "https://explorer.chivescoin.org/ChivesPets/Bug/B_4_1_6_9_3_8_3_1.png" --fingerprint 3220881649
+python nft.py create --name "Curly Nonchalant Marmot" --uri "https://example.com/curly-nonchalant-marmot.png"
 
 ```
 
