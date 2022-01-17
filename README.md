@@ -14,14 +14,24 @@
 
 1. Clone the repository
 ```shell
-git clone https://github.com/xch-gallery//nft-companion.git
+git clone https://github.com/xch-gallery/nft-companion.git
 cd nft-companion
 ```
 
-2. Run the install script and activate the virtual environment
+2.LINUX install: Run the install script and activate the virtual environment in Linux
 ```shell
 sh install.sh
 . ./venv/bin/activate
+```
+
+
+2.WIN10 install: Run the install script and activate the virtual environment in Win10
+```
+git clone https://github.com/xch-gallery/nft-companion
+cd nft-companion
+./install.ps1
+
+./venv/Scripts/activate
 ```
 
 ## Create a new NFT singleton
@@ -50,6 +60,11 @@ The transaction seems valid. Do you want to submit it? [y/N]: y
 The NFT has been submitted successfully!
 Please wait a few minutes for the NFT to be finalized.
 You can inspect your NFT using the following link: https://xch.gallery/singletons/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
+Accept a offer:
+$python3 nft.py accept-offer --offer-id 8 --launcher-id "4e4d4bf47b26e233de96da85d132617e5aac4d8087cf61e0f17a2a7d92a1d51e" --fingerprint "3405833834"
+
 ```
 
 ## Make a buy offer for a NFT singleton
