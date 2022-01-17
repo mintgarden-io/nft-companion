@@ -32,10 +32,6 @@ cd nft-companion
 ./install.ps1
 
 ./venv/Scripts/activate
-
-Create NFT in Win10
-python nft.py create --name "Curly Nonchalant Marmot" --uri "https://example.com/curly-nonchalant-marmot.png"
-
 ```
 
 ## Create a new NFT singleton
