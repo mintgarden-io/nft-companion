@@ -221,6 +221,13 @@ def update_profile(name: str, fingerprint: int):
 @click.option("--name", prompt=True, help="The name of the NFT")
 @click.option("--uri", prompt=True, help="The uri of the main NFT image")
 @click.option(
+    "--collection",
+    prompt=True,
+    help="The collection to associate with this NFT",
+    default=0,
+    show_default=True,
+)
+@click.option(
     "-r",
     "--royalty",
     "royalty_percentage",
@@ -239,7 +246,7 @@ def update_profile(name: str, fingerprint: int):
     show_default=True,
     help="The XCH fee to use for this transaction",
 )
-def create(name: str, uri: str, fingerprint: int, royalty_percentage: int, fee: int):
+def create(name: str, uri: str, collection:str, fingerprint: int, royalty_percentage: int, fee: int):
     if royalty_percentage > 99 or royalty_percentage < 0:
         click.secho(
             f"Royalty percentage has to be between 1 and 99.", err=True, fg="red"
@@ -270,7 +277,7 @@ def create(name: str, uri: str, fingerprint: int, royalty_percentage: int, fee: 
     )
 
     coin_spends, delegated_puzzle = create_unsigned_ownable_singleton(
-        genesis_coin, genesis_puzzle, creator, uri, name, version=2, royalty=royalty
+        genesis_coin, genesis_puzzle, creator, collection, uri, name, version=2, royalty=royalty
     )
 
     synthetic_secret_key: PrivateKey = (
@@ -342,6 +349,7 @@ def offer(launcher_id: str, price: float, fingerprint: Optional[int], fee: int):
         return
     singleton = response.json()
     name = singleton["name"]
+    collection = singleton["collection"]
     owner = singleton["owner"]
 
     price_in_mojo = int(price * units["chia"])
@@ -424,6 +432,7 @@ def accept_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int]):
         )
         return
     name = singleton_response.json()["name"]
+    collection = singleton_response.json()["collection"]
     royalty_percentage = singleton_response.json()["royalty_percentage"]
 
     offer_response = requests.get(
@@ -480,6 +489,7 @@ def cancel_offer(launcher_id: str, offer_id: str, fingerprint: Optional[int]):
         )
         return
     name = singleton_response.json()["name"]
+    collection = singleton_response.json()["collection"]
 
     offer_response = requests.get(
         f"{SINGLETON_GALLERY_API}/singletons/{launcher_id}/offers/{offer_id}"

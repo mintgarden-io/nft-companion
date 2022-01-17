@@ -36,6 +36,7 @@ Usage: nft.py create [OPTIONS]
 Options:
   --name TEXT            The name of the NFT
   --uri TEXT             The uri of the main NFT image
+  --collection TEXT      The collection for this NFT
   --royalty INTEGER      The royalty percentage [default: 0]
   --fingerprint INTEGER  The fingerprint of the key to use [optional]
   --fee INTEGER          The XCH fee to use for this transaction  [default: 0]
@@ -45,7 +46,7 @@ Options:
 The following example shows the creation of an example NFT singleton.
 
 ```shell
-$ python3 nft.py create --name "Curly Nonchalant Marmot" --uri "https://example.com/curly-nonchalant-marmot.png"
+$ python3 nft.py create --name "Curly Nonchalant Marmot" --uri "https://example.com/curly-nonchalant-marmot.png" --collection "Gallery Marmots" --royalty 3
 The transaction seems valid. Do you want to submit it? [y/N]: y
 The NFT has been submitted successfully!
 Please wait a few minutes for the NFT to be finalized.

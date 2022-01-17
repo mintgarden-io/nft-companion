@@ -64,6 +64,7 @@ async def create_singleton_spend_bundle(
         creator.public_key
     )
     name = "Curly Nonchalant Marmot"
+    collection = "Gallery Marmot"
     uri = "https://example.com/curly-nonchalant-marmot.png"
     (coin_spends, delegated_puzzle) = create_unsigned_ownable_singleton(
         genesis_coin,
@@ -71,6 +72,7 @@ async def create_singleton_spend_bundle(
         creator,
         uri,
         name,
+        collection,
         version,
         royalty,
     )

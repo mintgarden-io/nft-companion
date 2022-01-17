@@ -112,12 +112,14 @@ def create_unsigned_ownable_singleton(
     creator: Owner,
     uri: str,
     name: str,
+    collection: str,
     version=1,
     royalty: Optional[Royalty] = None,
 ) -> Tuple[List[CoinSpend], Program]:
     comment = [
         ("uri", uri),
         ("name", name),
+        ("collection", collection)
         ("creator", [creator.public_key, creator.puzzle_hash] if version == 2 else creator.public_key),
         ("version", version),
     ]
