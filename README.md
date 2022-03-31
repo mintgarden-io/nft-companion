@@ -1,20 +1,20 @@
 <p align="center">
-  <a href="https://xch.gallery">
-    <img src="https://xch.gallery/pflanz_128.png" alt="xch.gallery logo" width="128" height="128">
+  <a href="https://testnet.mintgarden.io">
+    <img src="http://localhost:3000/mintgarden-logo.svg" alt="MintGarden logo" width="300">
   </a>
 </p>
 
-<h3 align="center">NFT Companion</h3>
+<h3 align="center">MintGarden NFT Companion</h3>
 
 <div align="center">
-  Create and trade NFTs on <a href="https://xch.gallery">xch.gallery</a> and the Chia blockchain.
+  Create and trade Testnet NFTs on <a href="https://testnet.mintgarden.io">testnet.mintgarden.io</a> and the Chia blockchain.
 </div>
 
 ## Installation
 
 1. Clone the repository
 ```shell
-git clone https://github.com/xch-gallery/nft-companion.git
+git clone https://github.com/mintgarden-io/nft-companion.git
 cd nft-companion
 ```
 
@@ -27,7 +27,7 @@ sh install.sh
 
 2.WIN10 install: Run the install script and activate the virtual environment in Win10
 ```
-git clone https://github.com/xch-gallery/nft-companion
+git clone https://github.com/mintgarden-io/nft-companion
 cd nft-companion
 ./install.ps1
 
@@ -59,7 +59,7 @@ $ python3 nft.py create --name "Curly Nonchalant Marmot" --uri "https://example.
 The transaction seems valid. Do you want to submit it? [y/N]: y
 The NFT has been submitted successfully!
 Please wait a few minutes for the NFT to be finalized.
-You can inspect your NFT using the following link: https://xch.gallery/singletons/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+You can inspect your NFT using the following link: https://testnet.mintgarden.io/singletons/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 
 Accept a offer:
@@ -90,7 +90,7 @@ Here is an example of making a buy offer.
 $  python3 nft.py offer --price 0.11 --launcher-id "356eb19da1fac4490c8f83e39788d5989cc0db5a2eaf8285a58cd7f4ebe07501"
 You are offering 0.11 XCH for 'The fox'. Do you want to submit it? [y/N]: y
 Your offer has been submitted successfully!
-You can inspect it using the following link: https://xch.gallery/singletons/356eb19da1fac4490c8f83e39788d5989cc0db5a2eaf8285a58cd7f4ebe07501
+You can inspect it using the following link: https://testnet.mintgarden.io/singletons/356eb19da1fac4490c8f83e39788d5989cc0db5a2eaf8285a58cd7f4ebe07501
 ```
 
 ## Accept a buy offer for a NFT singleton
@@ -164,7 +164,7 @@ Choose wallet key:
 1) 1105740000
 2) 2244950000
 Enter a number to pick or q to quit: 1
-Your singleton profile is https://xch.gallery/profile/991053e52414463d68cb9f8901f1bf1d7301acf2d1203b4fb28e2ea93c48f10b336a56077ac4fd9a591ce514e72beb00
+Your singleton profile is https://testnet.mintgarden.io/profile/991053e52414463d68cb9f8901f1bf1d7301acf2d1203b4fb28e2ea93c48f10b336a56077ac4fd9a591ce514e72beb00
 ```
 
 
@@ -190,7 +190,7 @@ $ python3 nft.py update-profile
 Name: Acevail
 Do you want to set your profile name to Acevail? [y/N]: y
 Your profile has been updated!
-You can inspect it using the following link: https://xch.gallery/profile/b3035d8ca2d572dec7843cc134277eec13e56c84afb2bd41ba78cb5a1b080033177433cfa8973bb5bd583ff55e96f4b4
+You can inspect it using the following link: https://testnet.mintgarden.io/profile/b3035d8ca2d572dec7843cc134277eec13e56c84afb2bd41ba78cb5a1b080033177433cfa8973bb5bd583ff55e96f4b4
 ```
 
 ## Attribution
