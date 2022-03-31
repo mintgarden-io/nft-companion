@@ -38,8 +38,8 @@ AGG_SIG_ME_ADDITIONAL_DATA_TESTNET10 = bytes.fromhex(
     "ae83525ba8d1dd3f09b277de18ca3e43fc0af20d20c4b3e92ef2a48bd291ccb2"
 )
 
-SINGLETON_GALLERY_API = "https://xch.gallery/api"
-SINGLETON_GALLERY_FRONTEND = "https://xch.gallery"
+SINGLETON_GALLERY_API = "https://testnet.mintgarden.io/api"
+SINGLETON_GALLERY_FRONTEND = "https://testnet.mintgarden.io"
 
 
 # Loading the client requires the standard chia root directory configuration that all of the chia commands rely on
